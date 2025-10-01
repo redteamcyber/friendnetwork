@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Friend Tree</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>🌳 Friend Tree</h1>
+    <p>Visualize your friendships in a tree layout</p>
+  </header>
+
+  <main>
+    <section id="friend-form">
+      <input type="text" id="friend-input" placeholder="Enter a friend's name">
+      <button id="add-friend">Add Friend</button>
+    </section>
+
+    <section id="friend-tree">
+      <ul id="tree-root">
+        <li>
+          <span class="node">You</span>
+          <ul id="friends-list"></ul>
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

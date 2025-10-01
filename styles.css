@@ -1,0 +1,49 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f9fafb;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background: #4CAF50;
+  color: white;
+  text-align: center;
+  padding: 1rem;
+}
+
+#friend-form {
+  display: flex;
+  justify-content: center;
+  margin: 1rem;
+}
+
+#friend-input {
+  padding: 0.5rem;
+  font-size: 1rem;
+  width: 200px;
+  margin-right: 0.5rem;
+}
+
+#add-friend {
+  padding: 0.5rem 1rem;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+ul {
+  list-style-type: none;
+  position: relative;
+  padding-left: 2rem;
+}
+
+.node {
+  display: inline-block;
+  background: #e0f7fa;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #aaa;
+}
