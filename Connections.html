@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Friend Network Graph</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f7faf9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+    header {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    main {
+      display: flex;
+      gap: 20px;
+      width: 95%;
+      max-width: 1400px;
+    }
+    #controls {
+      flex: 0 0 350px;
+      background: #ffffff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      overflow-y: auto;
+      max-height: 85vh;
+    }
+    #network-graph {
+      flex-grow: 1;
+      height: 700px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .friend-form input, .friend-form button {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      margin-right: 5px;
+    }
+    .friend-form {
+      display: flex;
+      margin-bottom: 20px;
+      align-items: center;
+      gap: 5px;
+    }
+    .friend-form button#add-friend {
+      background: #2196F3;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .friend-form button#add-friend:hover {
+      background: #1976D2;
+    }
+    #tree-root {
+      list-style: none;
+      padding: 0;
+    }
+    .friend-item {
+      margin-bottom: 1rem;
+      background: #e8f5e9;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .delete-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      float: right;
+    }
+    .delete-btn:hover {
+      background: #c62828;
+    }
+    .connections-list {
+      margin-top: 0.5rem;
+      padding-left: 1.2rem;
+    }
+    .connection-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #ffffff;
+      border-radius: 6px;
+      margin: 4px 0;
+      padding: 4px 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .connection-item button {
+      background: #ff7043;
+      border: none;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .connection-item button:hover {
+      background: #e64a19;
+    }
+    .connection-form {
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .connection-form select, .connection-form button {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid #aaa;
+      font-size: 0.9rem;
+    }
+    .connection-form button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .connection-form button:hover {
+      background: #388E3C;
+    }
+    .link {
+      stroke: #999;
+      stroke-opacity: 0.6;
+      stroke-width: 2px;
+    }
+    .node circle {
+      stroke: #fff;
+      stroke-width: 1.5px;
+      cursor: pointer;
+    }
+    .node text {
+      font-size: 10px;
+      font-weight: bold;
+      fill: #333;
+      pointer-events: none;
+      text-anchor: middle;
+      text-shadow: 0 0 1px white, 0 0 1px white;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌳 Friend Network Visualizer</h1>
+    <p>Visualize the relationships in a force-directed graph.</p>
+  </header>
+
+  <main>
+    <div id="controls">
+        <h2>Add Friend</h2>
+        <section class="friend-form">
+            <input type="text" id="name-input" placeholder="Enter name">
+            <button id="add-friend">Add Friend</button>
+        </section>
+
+        <h2>Friend List & Connections</h2>
+        <section id="friend-tree">
+            <ul id="tree-root"></ul>
+        </section>
+    </div>
+
+    <section id="network-graph">
+        <svg></svg>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { getDatabase, ref, set, get, push, update, remove, child } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+    import * as d3 from "https://d3js.org/d3.v7.min.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCRNRlGcGNNT_s6Io1I5KTlzWnAh6SQOaI",
+      authDomain: "friendnetwork-862ab.firebaseapp.com",
+      databaseURL: "https://friendnetwork-862ab-default-rtdb.firebaseio.com",
+      projectId: "friendnetwork-862ab",
+      storageBucket: "friendnetwork-862ab.firebasestorage.app",
+      messagingSenderId: "63599209189",
+      appId: "1:63599209189:web:d319fd76397014f97d820c",
+      measurementId: "G-E05JH3NEYY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const nameInput = document.getElementById("name-input");
+    const addBtn = document.getElementById("add-friend");
+    const treeRoot = document.getElementById("tree-root");
+    const graphContainer = document.getElementById("network-graph");
+
+    function drag(simulation) {
+      function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+      function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+      }
+      function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }
+      return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended);
+    }
+
+    function renderGraph(friends) {
+      const nodes = [];
+      const links = [];
+      const friendMap = {};
+
+      for (const [id, friend] of Object.entries(friends)) {
+        friendMap[id] = nodes.length;
+        nodes.push({ id, name: friend.name });
+      }
+
+      const linkSet = new Set(); 
+      for (const [sourceId, friend] of Object.entries(friends)) {
+        for (const targetId of friend.connections || []) {
+          const smaller = sourceId < targetId ? sourceId : targetId;
+          const larger = sourceId < targetId ? targetId : sourceId;
+          const key = `${smaller}-${larger}`;
+          if (!linkSet.has(key) && friendMap[targetId] !== undefined) {
+            links.push({ source: sourceId, target: targetId });
+            linkSet.add(key);
+          }
+        }
+      }
+
+      graphContainer.innerHTML = '';
+      const width = graphContainer.clientWidth;
+      const height = graphContainer.clientHeight;
+
+      const svg = d3.select(graphContainer)
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      const g = svg.append("g");
+
+      const simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+        .force("charge", d3.forceManyBody().strength(-300))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .on("tick", ticked);
+
+      const link = g.append("g")
+        .attr("class", "links")
+        .selectAll("line")
+        .data(links)
+        .join("line")
+        .attr("class", "link");
+
+      const node = g.append("g")
+        .attr("class", "nodes")
+        .selectAll("g")
+        .data(nodes)
+        .join("g")
+        .attr("class", "node")
+        .call(drag(simulation));
+
+      node.append("circle")
+        .attr("r", 15)
+        .attr("fill", "#4CAF50");
+
+      node.append("text")
+        .attr("dy", 4)
+        .text(d => d.name);
+
+      function ticked() {
+        link
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
+
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+      }
+
+      svg.call(
+        d3.zoom()
+          .extent([[0, 0], [width, height]])
+          .scaleExtent([0.5, 8])
+          .on("zoom", ({transform}) => {
+            g.attr("transform", transform);
+          })
+      );
+    }
+
+    async function addFriend() {
+      const name = nameInput.value.trim();
+      if (!name) return alert("Please enter a name.");
+      const newRef = push(ref(db, "Friends"));
+      await set(newRef, { name, connections: [] });
+      nameInput.value = "";
+      loadFriends();
+    }
+
+    async function deleteFriendById(id, name) {
+      if (!confirm(`Delete "${name}"?`)) return;
+      await remove(ref(db, "Friends/" + id));
+      await cleanConnections(id);
+      loadFriends();
+    }
+
+    async function cleanConnections(deletedId) {
+      const dbRef = ref(db);
+      const snapshot = await get(child(dbRef, "Friends"));
+      if (!snapshot.exists()) return;
+      const allFriends = snapshot.val();
+      for (const [id, friend] of Object.entries(allFriends)) {
+        if (friend.connections?.includes(deletedId)) {
+          const updated = friend.connections.filter(c => c !== deletedId);
+          await update(ref(db, "Friends/" + id), { connections: updated });
+        }
+      }
+    }
+
+    async function deleteConnectionBetween(aId, bId) {
+      const dbRef = ref(db);
+      const snapshot = await get(child(dbRef, "Friends"));
+      if (!snapshot.exists()) return;
+      const data = snapshot.val();
+      const aConnections = new Set(data[aId]?.connections || []);
+      const bConnections = new Set(data[bId]?.connections || []);
+      aConnections.delete(bId);
+      bConnections.delete(aId);
+      await update(ref(db, "Friends/" + aId), { connections: [...aConnections] });
+      await update(ref(db, "Friends/" + bId), { connections: [...bConnections] });
+      loadFriends();
+    }
+
+    async function addConnectionBetween(aId, bId) {
+      const dbRef = ref(db);
+      const snapshot = await get(child(dbRef, "Friends"));
+      if (!snapshot.exists()) return alert("No users found.");
+      const allFriends = snapshot.val();
+      const aConnections = new Set(allFriends[aId]?.connections || []);
+      const bConnections = new Set(allFriends[bId]?.connections || []);
+      aConnections.add(bId);
+      bConnections.add(aId);
+      await update(ref(db, "Friends/" + aId), { connections: [...aConnections] });
+      await update(ref(db, "Friends/" + bId), { connections: [...bConnections] });
+      loadFriends();
+    }
+
+    async function loadFriends() {
+      const dbRef = ref(db);
+      const snapshot = await get(child(dbRef, "Friends"));
+      treeRoot.innerHTML = "";
+      let friends = {};
+
+      if (!snapshot.exists()) {
+        treeRoot.innerHTML = "<li>No friends yet.</li>";
+        renderGraph({});
+        return;
+      }
+
+      friends = snapshot.val();
+      for (const [id, friend] of Object.entries(friends)) {
+        const li = document.createElement("li");
+        li.className = "friend-item";
+        const header = document.createElement("div");
+        header.innerHTML = `
+          <button class="delete-btn" data-id="${id}" data-name="${friend.name}">🗑️</button>
+          <strong>${friend.name}</strong><br>
+          <small>ID: ${id}</small>
+        `;
+        li.appendChild(header);
+        const connList = document.createElement("ul");
+        connList.className = "connections-list";
+        const connections = friend.connections || [];
+        if (connections.length > 0) {
+          for (const connId of connections) {
+            const connItem = document.createElement("li");
+            connItem.className = "connection-item";
+            const connName = friends[connId]?.name || `(Unknown ID: ${connId})`;
+            connItem.innerHTML = `
+              <span>${connName}</span>
+              <button data-a="${id}" data-b="${connId}">❌</button>
+            `;
+            connItem.querySelector("button").addEventListener("click", e => {
+              deleteConnectionBetween(id, connId);
+            });
+            connList.appendChild(connItem);
+          }
+        } else {
+          connList.innerHTML = `<li><em>No connections</em></li>`;
+        }
+        li.appendChild(connList);
+
+        const availableFriends = Object.entries(friends)
+          .filter(([fid]) => fid !== id && !(connections || []).includes(fid));
+        if (availableFriends.length > 0) {
+          const connForm = document.createElement("div");
+          connForm.className = "connection-form";
+          const select = document.createElement("select");
+          for (const [fid, fdata] of availableFriends) {
+            const option = document.createElement("option");
+            option.value = fid;
+            option.textContent = fdata.name;
+            select.appendChild(option);
+          }
+          const addBtn = document.createElement("button");
+          addBtn.textContent = "➕ Add Connection";
+          addBtn.addEventListener("click", () => addConnectionBetween(id, select.value));
+          connForm.appendChild(select);
+          connForm.appendChild(addBtn);
+          li.appendChild(connForm);
+        }
+        header.querySelector(".delete-btn").addEventListener("click", e => {
+          deleteFriendById(id, friend.name);
+        });
+        treeRoot.appendChild(li);
+      }
+      renderGraph(friends);
+    }
+
+    addBtn.addEventListener("click", addFriend);
+    window.addEventListener("load", loadFriends);
+  </script>
+</body>
+</html>
