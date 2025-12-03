@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Friend Network - Home</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 3rem;
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+      color: #333;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+    }
+    
+    .nav-links {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    
+    .nav-link {
+      display: block;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .nav-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    
+    .nav-link.secondary {
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+    }
+    
+    .nav-link.secondary:hover {
+      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+    }
+    
+    .icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    
+    .description {
+      color: #555;
+      margin-top: 1rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🌳</div>
+    <h1>Friend Network</h1>
+    <p class="subtitle">Connect and visualize your social network</p>
+    
+    <div class="nav-links">
+      <a href="firebase.html" class="nav-link">
+        👥 Manage Friends
+        <div class="description">Add, edit, and manage your friend connections</div>
+      </a>
+      
+      <a href="Connections.html" class="nav-link secondary">
+        📊 View Network Graph
+        <div class="description">Visualize your friend network with an interactive graph</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
+

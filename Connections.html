@@ -20,21 +20,49 @@
     }
     main {
       display: flex;
-      gap: 20px;
       width: 95%;
       max-width: 1400px;
+      position: relative;
     }
     #controls {
-      flex: 0 0 350px;
+      width: 350px;
+      min-width: 200px;
+      max-width: 600px;
       background: #ffffff;
       padding: 15px;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       overflow-y: auto;
       max-height: 85vh;
+      resize: none;
+    }
+    .resize-handle {
+      width: 8px;
+      background: #e0e0e0;
+      cursor: col-resize;
+      flex-shrink: 0;
+      position: relative;
+      transition: background 0.2s;
+    }
+    .resize-handle:hover {
+      background: #2196F3;
+    }
+    .resize-handle::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #999;
+      transform: translateX(-50%);
+    }
+    .resize-handle:hover::before {
+      background: #2196F3;
     }
     #network-graph {
-      flex-grow: 1;
+      flex: 1;
+      min-width: 300px;
       height: 700px;
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -172,6 +200,8 @@
         </section>
     </div>
 
+    <div class="resize-handle" id="resize-handle"></div>
+
     <section id="network-graph">
         <svg></svg>
     </section>
@@ -180,7 +210,8 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
     import { getDatabase, ref, set, get, push, update, remove, child } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
-    import * as d3 from "https://d3js.org/d3.v7.min.js";
+    // Use an ES-module-compatible build of d3 so d3.select works in modules
+    import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCRNRlGcGNNT_s6Io1I5KTlzWnAh6SQOaI",
@@ -200,6 +231,44 @@
     const addBtn = document.getElementById("add-friend");
     const treeRoot = document.getElementById("tree-root");
     const graphContainer = document.getElementById("network-graph");
+    const controlsPanel = document.getElementById("controls");
+    const resizeHandle = document.getElementById("resize-handle");
+
+    // Resize handle functionality
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = controlsPanel.offsetWidth;
+      document.addEventListener('mousemove', handleResize);
+      document.addEventListener('mouseup', stopResize);
+      e.preventDefault();
+    });
+
+    function handleResize(e) {
+      if (!isResizing) return;
+      const width = startWidth + (e.clientX - startX);
+      const minWidth = 200;
+      const maxWidth = 600;
+      const newWidth = Math.max(minWidth, Math.min(maxWidth, width));
+      controlsPanel.style.width = newWidth + 'px';
+    }
+
+    function stopResize() {
+      isResizing = false;
+      document.removeEventListener('mousemove', handleResize);
+      document.removeEventListener('mouseup', stopResize);
+      // Update graph size after resize
+      const svg = d3.select(graphContainer).select('svg');
+      if (!svg.empty()) {
+        const width = graphContainer.clientWidth;
+        const height = graphContainer.clientHeight;
+        svg.attr('width', width).attr('height', height);
+      }
+    }
 
     function drag(simulation) {
       function dragstarted(event, d) {
@@ -220,31 +289,42 @@
     }
 
     function renderGraph(friends) {
+      console.log("Rendering graph with friends:", friends); // Debug log
+      
       const nodes = [];
       const links = [];
       const friendMap = {};
 
+      // Create nodes for all friends
       for (const [id, friend] of Object.entries(friends)) {
+        if (!friend || !friend.name) continue; // Skip invalid entries
         friendMap[id] = nodes.length;
         nodes.push({ id, name: friend.name });
       }
 
+      console.log("Created nodes:", nodes.length); // Debug log
+
+      // Create links for connections
       const linkSet = new Set(); 
       for (const [sourceId, friend] of Object.entries(friends)) {
-        for (const targetId of friend.connections || []) {
+        if (!friend || !friend.connections) continue;
+        for (const targetId of friend.connections) {
+          if (!friends[targetId]) continue; // Skip if target doesn't exist
           const smaller = sourceId < targetId ? sourceId : targetId;
           const larger = sourceId < targetId ? targetId : sourceId;
           const key = `${smaller}-${larger}`;
-          if (!linkSet.has(key) && friendMap[targetId] !== undefined) {
+          if (!linkSet.has(key) && friendMap[targetId] !== undefined && friendMap[sourceId] !== undefined) {
             links.push({ source: sourceId, target: targetId });
             linkSet.add(key);
           }
         }
       }
 
+      console.log("Created links:", links.length); // Debug log
+
       graphContainer.innerHTML = '';
-      const width = graphContainer.clientWidth;
-      const height = graphContainer.clientHeight;
+      const width = graphContainer.clientWidth || 800;
+      const height = graphContainer.clientHeight || 700;
 
       const svg = d3.select(graphContainer)
         .append("svg")
@@ -254,9 +334,10 @@
       const g = svg.append("g");
 
       const simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id(d => d.id).distance(100))
-        .force("charge", d3.forceManyBody().strength(-300))
+        .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+        .force("charge", d3.forceManyBody().strength(-400))
         .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collision", d3.forceCollide().radius(25))
         .on("tick", ticked);
 
       const link = g.append("g")
@@ -264,7 +345,10 @@
         .selectAll("line")
         .data(links)
         .join("line")
-        .attr("class", "link");
+        .attr("class", "link")
+        .attr("stroke-width", 2)
+        .attr("stroke", "#999")
+        .attr("stroke-opacity", 0.6);
 
       const node = g.append("g")
         .attr("class", "nodes")
@@ -275,11 +359,16 @@
         .call(drag(simulation));
 
       node.append("circle")
-        .attr("r", 15)
-        .attr("fill", "#4CAF50");
+        .attr("r", 20)
+        .attr("fill", "#4CAF50")
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 2);
 
       node.append("text")
-        .attr("dy", 4)
+        .attr("dy", 5)
+        .attr("font-size", "12px")
+        .attr("font-weight", "bold")
+        .attr("fill", "#333")
         .text(d => d.name);
 
       function ticked() {
@@ -360,38 +449,118 @@
     }
 
     async function loadFriends() {
-      const dbRef = ref(db);
-      const snapshot = await get(child(dbRef, "Friends"));
-      treeRoot.innerHTML = "";
-      let friends = {};
+      try {
+        console.log("loadFriends called"); // Debug
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, "Friends"));
+        console.log("Snapshot exists:", snapshot.exists()); // Debug
+        
+        const friendTreeSection = document.getElementById("friend-tree");
+        if (!friendTreeSection) {
+          console.error("friend-tree section not found!");
+          return;
+        }
+        
+        friendTreeSection.innerHTML = '<ul id="tree-root"></ul>';
+        // Get reference to the newly created tree-root
+        const currentTreeRoot = document.getElementById("tree-root");
+        if (!currentTreeRoot) {
+          console.error("tree-root not found!");
+          return;
+        }
+        currentTreeRoot.innerHTML = "";
+        let friends = {};
 
       if (!snapshot.exists()) {
-        treeRoot.innerHTML = "<li>No friends yet.</li>";
+        currentTreeRoot.innerHTML = "<li>No friends yet.</li>";
         renderGraph({});
         return;
       }
 
       friends = snapshot.val();
+      console.log("Loaded friends:", friends); // Debug log
+      console.log("Number of friends:", friends ? Object.keys(friends).length : 0);
+      
+      // Ensure we have friends data
+      if (!friends || Object.keys(friends).length === 0) {
+        currentTreeRoot.innerHTML = "<li>No friends found in database.</li>";
+        renderGraph({});
+        return;
+      }
+      
+      // Clean up invalid connections (only remove connections to friends that don't exist)
+      let needsReload = false;
       for (const [id, friend] of Object.entries(friends)) {
+        if (!friend.connections || friend.connections.length === 0) continue;
+        const validConnections = [];
+        for (const connId of friend.connections) {
+          // Only remove connection if target friend doesn't exist
+          // Keep one-way connections - they're valid
+          if (friends[connId]) {
+            validConnections.push(connId);
+          }
+        }
+        // Update if we found invalid connections (to non-existent friends)
+        if (validConnections.length !== friend.connections.length) {
+          await update(ref(db, "Friends/" + id), { connections: validConnections });
+          friend.connections = validConnections;
+          needsReload = true;
+        }
+      }
+      
+      // Reload if we cleaned up connections to get fresh data
+      if (needsReload) {
+        const updatedSnapshot = await get(child(dbRef, "Friends"));
+        if (updatedSnapshot.exists()) {
+          friends = updatedSnapshot.val();
+        }
+      }
+      
+      // Add summary header before the list
+      const summaryDiv = document.createElement("div");
+      summaryDiv.style.cssText = "margin-bottom: 1rem; padding: 0.75rem; background: #e3f2fd; border-radius: 8px; font-size: 0.9rem;";
+      summaryDiv.innerHTML = `<strong>👥 Total Friends: ${Object.keys(friends).length}</strong>`;
+      friendTreeSection.insertBefore(summaryDiv, currentTreeRoot);
+      
+      // Create a visual list showing all friends and their connections
+      console.log("Creating friend list items...");
+      let friendCount = 0;
+      for (const [id, friend] of Object.entries(friends)) {
+        if (!friend || !friend.name) {
+          console.warn("Invalid friend data:", id, friend);
+          continue;
+        }
+        friendCount++;
         const li = document.createElement("li");
         li.className = "friend-item";
         const header = document.createElement("div");
         header.innerHTML = `
           <button class="delete-btn" data-id="${id}" data-name="${friend.name}">🗑️</button>
-          <strong>${friend.name}</strong><br>
-          <small>ID: ${id}</small>
+          <strong>${friend.name}</strong>
         `;
         li.appendChild(header);
+        
         const connList = document.createElement("ul");
         connList.className = "connections-list";
         const connections = friend.connections || [];
-        if (connections.length > 0) {
-          for (const connId of connections) {
+        
+        // Show all connections where the target friend exists
+        const validConnections = connections.filter(connId => {
+          return friends[connId] !== undefined;
+        });
+        
+        if (validConnections.length > 0) {
+          connList.innerHTML = '<li style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Connected to:</li>';
+          for (const connId of validConnections) {
             const connItem = document.createElement("li");
             connItem.className = "connection-item";
-            const connName = friends[connId]?.name || `(Unknown ID: ${connId})`;
+            const connName = friends[connId].name;
+            // Check if connection is mutual
+            const isMutual = friends[connId].connections?.includes(id);
+            const connectionIcon = isMutual ? '↔️' : '→';
+            const connectionStatus = isMutual ? '' : ' (one-way)';
             connItem.innerHTML = `
-              <span>${connName}</span>
+              <span>${connectionIcon} ${connName}${connectionStatus}</span>
               <button data-a="${id}" data-b="${connId}">❌</button>
             `;
             connItem.querySelector("button").addEventListener("click", e => {
@@ -400,12 +569,17 @@
             connList.appendChild(connItem);
           }
         } else {
-          connList.innerHTML = `<li><em>No connections</em></li>`;
+          connList.innerHTML = `<li style="font-size: 0.85rem; color: #999;"><em>No connections yet</em></li>`;
         }
         li.appendChild(connList);
 
+        // Show friends who aren't already in this friend's connections list
         const availableFriends = Object.entries(friends)
-          .filter(([fid]) => fid !== id && !(connections || []).includes(fid));
+          .filter(([fid]) => {
+            if (fid === id) return false;
+            // Show if not already connected (regardless of mutual status)
+            return !connections.includes(fid);
+          });
         if (availableFriends.length > 0) {
           const connForm = document.createElement("div");
           connForm.className = "connection-form";
@@ -426,13 +600,29 @@
         header.querySelector(".delete-btn").addEventListener("click", e => {
           deleteFriendById(id, friend.name);
         });
-        treeRoot.appendChild(li);
+        currentTreeRoot.appendChild(li);
       }
+      console.log(`Added ${friendCount} friends to the list`);
+      console.log("Rendering graph with", Object.keys(friends).length, "friends");
       renderGraph(friends);
+      } catch (error) {
+        console.error("Error loading friends:", error);
+        const friendTreeSection = document.getElementById("friend-tree");
+        if (friendTreeSection) {
+          friendTreeSection.innerHTML = `<div style="color: red; padding: 1rem;">Error loading friends: ${error.message}</div>`;
+        }
+      }
     }
 
     addBtn.addEventListener("click", addFriend);
-    window.addEventListener("load", loadFriends);
+    
+    // Load friends when page loads
+    if (document.readyState === 'loading') {
+      window.addEventListener("load", loadFriends);
+    } else {
+      // DOM already loaded
+      loadFriends();
+    }
   </script>
 </body>
 </html>
